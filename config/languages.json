@@ -1,0 +1,206 @@
+{
+  "_comment": "One entry per language. `build` runs once in a scratch copy of the language folder; `run` is executed (no shell) with the puzzle input piped to stdin. `kind` groups languages on the site: native = compiled to machine code, vm = bytecode/JIT runtime, interpreted = script interpreter. Set `enabled` to false to drop a language from generation and benchmarking.",
+  "languages": [
+    {
+      "id": "python", "name": "Python", "kind": "interpreted", "enabled": true,
+      "file": "solution.py",
+      "build": null,
+      "run": "python3 solution.py",
+      "version": "python3 --version",
+      "hint": "Read input with sys.stdin.read(). Standard library only (collections, heapq, itertools, functools, re, math are fine). Raise the recursion limit if you recurse deeply."
+    },
+    {
+      "id": "javascript", "name": "JavaScript", "kind": "vm", "enabled": true,
+      "file": "solution.js",
+      "build": null,
+      "run": "node solution.js",
+      "version": "node --version",
+      "hint": "Runs on Node.js. Read input with require('fs').readFileSync(0, 'utf8'). Use BigInt where values can exceed 2^53. No npm packages."
+    },
+    {
+      "id": "typescript", "name": "TypeScript", "kind": "vm", "enabled": true,
+      "file": "solution.ts",
+      "build": null,
+      "run": "node --experimental-strip-types --disable-warning=ExperimentalWarning solution.ts",
+      "version": "node --version",
+      "hint": "Runs directly on Node.js via built-in type stripping, so use only erasable TypeScript syntax: type annotations, interfaces and type aliases are fine; do NOT use enums, namespaces, parameter properties or any other syntax that needs code generation. Import node modules with the 'node:' prefix, e.g. import { readFileSync } from 'node:fs'. Use BigInt where values can exceed 2^53. No npm packages."
+    },
+    {
+      "id": "java", "name": "Java", "kind": "vm", "enabled": true,
+      "file": "Solution.java",
+      "build": "javac -d . Solution.java",
+      "run": "java -Xss256m Solution",
+      "version": "java -version",
+      "hint": "The public class must be named Solution, with no package declaration. Read stdin with a BufferedReader or System.in.readAllBytes(). Use only the JDK."
+    },
+    {
+      "id": "c", "name": "C", "kind": "native", "enabled": true,
+      "file": "solution.c",
+      "build": "gcc -O2 -o solution solution.c -lm",
+      "run": "./solution",
+      "version": "gcc --version",
+      "hint": "Compiled with gcc -O2 using the default GNU C standard. Standard library only, so implement any hash map, heap or dynamic array you need yourself. Read all of stdin into a growing buffer. Use 64-bit integers (long long / int64_t) for answers."
+    },
+    {
+      "id": "cpp", "name": "C++", "kind": "native", "enabled": true,
+      "file": "solution.cpp",
+      "build": "g++ -O2 -std=c++20 -o solution solution.cpp",
+      "run": "./solution",
+      "version": "g++ --version",
+      "hint": "Compiled with g++ -O2 -std=c++20. Standard library only (STL containers and algorithms are welcome). Use 64-bit integers for answers."
+    },
+    {
+      "id": "csharp", "name": "C#", "kind": "vm", "enabled": true,
+      "file": "Program.cs",
+      "scaffold": ["solution.csproj"],
+      "build": "dotnet build -c Release -o out --nologo -v q -p:UseAppHost=false",
+      "run": "dotnet out/solution.dll",
+      "version": "dotnet --version",
+      "hint": "A .NET console project already exists (nullable disabled, implicit usings enabled, top-level statements allowed). Put everything in Program.cs. Read stdin with Console.In.ReadToEnd(). BCL only, no NuGet packages."
+    },
+    {
+      "id": "go", "name": "Go", "kind": "native", "enabled": true,
+      "file": "solution.go",
+      "build": "go build -o solution solution.go",
+      "run": "./solution",
+      "version": "go version",
+      "hint": "Single file, package main, standard library only. Read stdin with io.ReadAll(os.Stdin) or a bufio.Scanner with an enlarged buffer."
+    },
+    {
+      "id": "rust", "name": "Rust", "kind": "native", "enabled": true,
+      "file": "solution.rs",
+      "build": "rustc --edition 2021 -C opt-level=3 -o solution solution.rs",
+      "run": "./solution",
+      "version": "rustc --version",
+      "hint": "Compiled directly with rustc, so there is no Cargo and no external crates: std only. Read stdin with std::io::Read::read_to_string."
+    },
+    {
+      "id": "swift", "name": "Swift", "kind": "native", "enabled": true,
+      "file": "solution.swift",
+      "build": "swiftc -O -o solution solution.swift",
+      "run": "./solution",
+      "version": "swiftc --version",
+      "hint": "Single file with top-level code, compiled with swiftc -O on Linux. Foundation is available but keep to the Swift standard library where you can. Read stdin with readLine(strippingNewline: true) in a loop, or FileHandle.standardInput.readDataToEndOfFile()."
+    },
+    {
+      "id": "kotlin", "name": "Kotlin", "kind": "vm", "enabled": true,
+      "file": "solution.kt",
+      "build": "kotlinc solution.kt -include-runtime -d solution.jar",
+      "run": "java -Xss256m -jar solution.jar",
+      "version": "kotlinc -version",
+      "hint": "Define a top-level fun main(). Kotlin/JVM, standard library and JDK only. Read stdin with System.`in`.bufferedReader().readText()."
+    },
+    {
+      "id": "ruby", "name": "Ruby", "kind": "interpreted", "enabled": true,
+      "file": "solution.rb",
+      "build": null,
+      "run": "ruby solution.rb",
+      "version": "ruby --version",
+      "hint": "Read input with $stdin.read. Standard library only (set, etc. via require)."
+    },
+    {
+      "id": "php", "name": "PHP", "kind": "interpreted", "enabled": true,
+      "file": "solution.php",
+      "build": null,
+      "run": "php -d memory_limit=-1 solution.php",
+      "version": "php --version",
+      "hint": "CLI script starting with <?php. Read input with stream_get_contents(STDIN). Print with echo and PHP_EOL."
+    },
+    {
+      "id": "bash", "name": "Bash", "kind": "interpreted", "enabled": true,
+      "file": "solution.sh",
+      "build": null,
+      "run": "bash solution.sh",
+      "version": "bash --version",
+      "hint": "Bash 5 only. Use builtins, arrays, associative arrays and arithmetic expansion. Small coreutils helpers (sort, tr, cut, grep, sed, wc, head, tail) are allowed when they clearly help, but do NOT call awk, perl, python or any other interpreter. Read input with mapfile -t lines or read -r."
+    },
+    {
+      "id": "haskell", "name": "Haskell", "kind": "native", "enabled": true,
+      "file": "solution.hs",
+      "build": "ghc -O2 -o solution -outputdir obj solution.hs",
+      "run": "./solution",
+      "version": "ghc --version",
+      "hint": "module Main with main :: IO (). Only packages that ship with GHC (base, containers, array, bytestring, text, mtl) are available. Read stdin with getContents or Data.ByteString.Char8.getContents. Use strict folds and Data.Map.Strict/IntMap to keep it fast."
+    },
+    {
+      "id": "scala", "name": "Scala", "kind": "vm", "enabled": true,
+      "file": "solution.scala",
+      "build": "scala-cli --power package --assembly --main-class Solution solution.scala -o solution.jar -f",
+      "run": "java -Xss256m -jar solution.jar",
+      "version": "scala-cli version",
+      "hint": "Scala 3. Define `object Solution { def main(args: Array[String]): Unit = ... }` (do not use @main). Standard library only. Read stdin with scala.io.Source.stdin.mkString."
+    },
+    {
+      "id": "r", "name": "R", "kind": "interpreted", "enabled": true,
+      "file": "solution.R",
+      "build": null,
+      "run": "Rscript solution.R",
+      "version": "Rscript --version",
+      "hint": "Base R only, no packages. Read stdin with readLines(file('stdin')). Print answers with cat(x, '\\n', sep='') and format large numbers with format(x, scientific = FALSE) or sprintf('%.0f', x) so they never come out in exponent notation."
+    },
+    {
+      "id": "lua", "name": "Lua", "kind": "interpreted", "enabled": true,
+      "file": "solution.lua",
+      "build": null,
+      "run": "lua5.4 solution.lua",
+      "version": "lua5.4 -v",
+      "hint": "Lua 5.4 (64-bit integers, integer division //). Read input with io.read('a'). Standard library only."
+    },
+    {
+      "id": "dart", "name": "Dart", "kind": "native", "enabled": true,
+      "file": "solution.dart",
+      "build": "dart compile exe solution.dart -o solution",
+      "run": "./solution",
+      "version": "dart --version",
+      "hint": "Define void main() and import 'dart:io'. Read stdin by looping stdin.readLineSync() until null. Core libraries only, no pub packages."
+    },
+    {
+      "id": "perl", "name": "Perl", "kind": "interpreted", "enabled": true,
+      "file": "solution.pl",
+      "build": null,
+      "run": "perl solution.pl",
+      "version": "perl -e 'print $^V'",
+      "hint": "Perl 5 with `use strict; use warnings;`. Core modules only (List::Util, etc.). Read stdin with local $/; <STDIN>."
+    },
+    {
+      "id": "elixir", "name": "Elixir", "kind": "vm", "enabled": true,
+      "file": "solution.exs",
+      "build": null,
+      "run": "elixir solution.exs",
+      "version": "elixir --version",
+      "hint": "An .exs script run with `elixir`. Read stdin with IO.read(:stdio, :eof). Standard library only, no Mix dependencies. Prefer Enum/Stream pipelines, MapSet and Map, and tail-recursive loops."
+    },
+    {
+      "id": "ocaml", "name": "OCaml", "kind": "native", "enabled": true,
+      "file": "solution.ml",
+      "build": "ocamlfind ocamlopt -package str,unix -linkpkg solution.ml -o solution",
+      "run": "./solution",
+      "version": "ocamlfind ocamlopt -version",
+      "hint": "Native-compiled. Stdlib plus the str and unix libraries only. Read stdin with In_channel.input_all stdin (OCaml 4.14+) or a loop over input_line."
+    },
+    {
+      "id": "julia", "name": "Julia", "kind": "vm", "enabled": true,
+      "file": "solution.jl",
+      "build": null,
+      "run": "julia -O3 --startup-file=no solution.jl",
+      "version": "julia --version",
+      "hint": "Base and standard-library modules only, no Pkg. Wrap the work in functions (type-stable, no mutable globals in hot loops). Read stdin with read(stdin, String)."
+    },
+    {
+      "id": "zig", "name": "Zig", "kind": "native", "enabled": true,
+      "file": "solution.zig",
+      "build": "zig build-exe solution.zig -O ReleaseFast -femit-bin=solution",
+      "run": "./solution",
+      "version": "zig version",
+      "hint": "std only. The Zig standard library changes a lot between releases, so write against the exact version in the toolchain line above. Use std.heap.page_allocator or an arena over it, read all of stdin into memory, and print the two answers to stdout."
+    },
+    {
+      "id": "fortran", "name": "Fortran", "kind": "native", "enabled": true,
+      "file": "solution.f90",
+      "build": "gfortran -O2 -ffree-line-length-none -o solution solution.f90",
+      "run": "./solution",
+      "version": "gfortran --version",
+      "hint": "Free-form Fortran 2008 compiled with gfortran, `program main` with implicit none. Read stdin lines with read(*,'(A)',iostat=ios) into a long character buffer. Use integer(kind=8) for answers."
+    }
+  ]
+}

@@ -1,0 +1,218 @@
+name: Advent of Code
+
+# Every two hours in December (UTC), starting just after the 05:00 UTC puzzle unlock, plus on demand.
+# Each run is idempotent: it only does work for days whose puzzle text has changed since the last run
+# (for example when part 2 appears after you submit part 1) or that have no solutions yet.
+on:
+  schedule:
+    - cron: "23 1-23/2 * 12 *"
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "Puzzle year (default: the current year)"
+        required: false
+      days:
+        description: "Days to process, e.g. 3 or 1-5 (default: whatever needs work)"
+        required: false
+      force:
+        description: "Regenerate and re-benchmark even if nothing changed"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "harness/site/**"
+      - "harness/sitebuild.py"
+      - "harness/aggregate.py"
+      - "config/languages.json"
+
+permissions: {}
+
+# One run at a time: both the scheduled and manual runs commit to main.
+concurrency:
+  group: aoc
+  cancel-in-progress: false
+
+jobs:
+  # ------------------------------------------------------------------------------------------
+  # Job 1: fetch, generate, benchmark. Runs LLM-written code, so it has read-only repo access,
+  # no persisted git credentials, and each secret is exposed only to the single step that needs it:
+  #   AOC_SESSION       -> `fetch` only (talks to adventofcode.com, runs no generated code)
+  #   ANTHROPIC_API_KEY -> `generate` steps only (talks to the API, runs no generated code)
+  #   `bench` steps run the generated code and see neither secret.
+  # ------------------------------------------------------------------------------------------
+  solve:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    env:
+      YEAR: ${{ inputs.year }}
+      DAYS: ${{ inputs.days }}
+      FORCE: ${{ inputs.force }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # ---- toolchains (optional ones may fail without failing the run; `doctor` shows the result)
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: actions/setup-go@v5
+        with: { go-version: stable, cache: false }
+      - uses: actions/setup-dotnet@v4
+        continue-on-error: true
+        with: { dotnet-version: "8.0.x" }
+      - uses: dart-lang/setup-dart@v1
+        continue-on-error: true
+      - uses: mlugg/setup-zig@v2
+        continue-on-error: true
+        with: { version: "0.14.1" }
+      - uses: julia-actions/setup-julia@v2
+        continue-on-error: true
+        with: { version: "1.11" }
+      - uses: swift-actions/setup-swift@v2
+        continue-on-error: true
+        with: { swift-version: "6.0.3" }
+      - uses: erlef/setup-beam@v1
+        continue-on-error: true
+        with: { otp-version: "27", elixir-version: "1.18" }
+      - name: Install remaining toolchains
+        run: bash scripts/install-toolchains.sh
+      - name: Toolchain report
+        run: python3 -m harness doctor
+
+      # ---- 1. fetch (AOC_SESSION only)
+      - name: Fetch puzzles
+        id: fetch
+        env:
+          AOC_SESSION: ${{ secrets.AOC_SESSION }}
+          AOC_USER_AGENT: github.com/${{ github.repository }} by ${{ vars.AOC_CONTACT }}
+        run: |
+          args=()
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          [ -n "$DAYS" ] && args+=(--days "$DAYS")
+          [ "$FORCE" = "true" ] && args+=(--force)
+          python3 -m harness fetch "${args[@]}"
+
+      # ---- 2. generate (ANTHROPIC_API_KEY only)
+      - name: Generate solutions
+        if: steps.fetch.outputs.count != '0'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AOC_MODEL: ${{ vars.AOC_MODEL }}
+        run: |
+          args=()
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          [ "$FORCE" = "true" ] && args+=(--force)
+          python3 -m harness generate "${args[@]}"
+
+      # ---- 3. benchmark (no secrets in this step)
+      - name: Benchmark
+        if: steps.fetch.outputs.count != '0'
+        run: |
+          args=()
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          python3 -m harness bench "${args[@]}"
+
+      # ---- 4. let Claude fix builds, crashes, timeouts and wrong answers (two rounds)
+      - name: Repair round 1
+        if: steps.fetch.outputs.count != '0'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AOC_MODEL: ${{ vars.AOC_MODEL }}
+        run: |
+          args=(--repair)
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          python3 -m harness generate "${args[@]}"
+      - name: Re-benchmark repaired solutions (round 1)
+        if: steps.fetch.outputs.count != '0'
+        run: |
+          args=(--only-changed)
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          python3 -m harness bench "${args[@]}"
+      - name: Repair round 2
+        if: steps.fetch.outputs.count != '0'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AOC_MODEL: ${{ vars.AOC_MODEL }}
+        run: |
+          args=(--repair)
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          python3 -m harness generate "${args[@]}"
+      - name: Re-benchmark repaired solutions (round 2)
+        if: steps.fetch.outputs.count != '0'
+        run: |
+          args=(--only-changed)
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          python3 -m harness bench "${args[@]}"
+
+      # ---- 5. hand over only publishable files (sources, meta.json, results.json)
+      - name: Collect publishable files
+        if: always()
+        run: python3 -m harness collect --out out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results
+          path: out
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # ------------------------------------------------------------------------------------------
+  # Job 2: commit the results and build the site. Never executes generated code.
+  # ------------------------------------------------------------------------------------------
+  publish:
+    needs: solve
+    if: ${{ !cancelled() && (needs.solve.result == 'success' || needs.solve.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/download-artifact@v4
+        if: github.event_name != 'push'
+        continue-on-error: true   # no artifact when there is nothing to publish yet
+        with:
+          name: results
+          path: out
+      - name: Commit results
+        if: github.event_name != 'push'
+        run: |
+          [ -d out ] && cp -a out/. .
+          rm -rf out
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- $(ls -d [0-9][0-9][0-9][0-9] 2>/dev/null)
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -q -m "Results $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase -q origin "${GITHUB_REF_NAME}"
+            git push -q origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+      - name: Build site
+        run: python3 -m harness site --out dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

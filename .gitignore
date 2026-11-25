@@ -1,0 +1,10 @@
+# Private/derived data: never commit puzzle text or personal inputs.
+.work/
+.build/
+dist/
+out/
+
+__pycache__/
+*.pyc
+.DS_Store
+.env

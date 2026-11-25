@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advent of Code in every language</title>
+<meta name="description" content="Advent of Code solved in 25 programming languages, benchmarked on the same input.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead">
+  <div class="wrap masthead-row">
+    <div>
+      <h1><a href="#/" id="home">Advent of Code, in every language</a></h1>
+      <p class="tagline" id="tagline">Every puzzle solved in 25 languages and timed on the same input.</p>
+    </div>
+    <div class="masthead-tools">
+      <a id="repo-link" class="quiet" href="#" hidden>Source on GitHub</a>
+      <button id="theme" class="ghost" type="button" aria-label="Switch colour theme">Theme</button>
+    </div>
+  </div>
+  <nav class="wrap yearbar" id="yearbar" aria-label="Year"></nav>
+</header>
+
+<main id="main" class="wrap" tabindex="-1"></main>
+
+<footer class="wrap foot">
+  <p id="foot-note"></p>
+</footer>
+
+<div id="tip" class="tip" role="status" hidden></div>
+
+<dialog id="source">
+  <form method="dialog" class="dlg-bar">
+    <strong id="source-title"></strong>
+    <span class="dlg-actions">
+      <a id="source-gh" class="quiet" href="#" target="_blank" rel="noopener" hidden>View on GitHub</a>
+      <button id="source-copy" type="button" class="ghost">Copy</button>
+      <button class="ghost" value="close">Close</button>
+    </span>
+  </form>
+  <pre id="source-code" tabindex="0"></pre>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+name: Harness tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - "harness/**"
+      - "tests/**"
+      - "config/**"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      # Offline tests: no secrets, no network. Languages missing from the runner are skipped.
+      - run: python3 -m unittest discover -s tests -v
