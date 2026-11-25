@@ -1,8 +1,9 @@
 {
   "_comment": "Tunables for the harness. Environment variables of the form AOC_<NAME_IN_CAPS> override these (e.g. AOC_MODEL, AOC_RUNS).",
+  "backend": "claude-code",
   "model": "claude-sonnet-5-5",
   "max_output_tokens": 16000,
-  "generate_concurrency": 4,
+  "generate_concurrency": 3,
   "repair_rounds": 2,
   "runs": 5,
   "slow_first_run_seconds": 10,

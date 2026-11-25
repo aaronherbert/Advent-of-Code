@@ -38,7 +38,7 @@ jobs:
   # Job 1: fetch, generate, benchmark. Runs LLM-written code, so it has read-only repo access,
   # no persisted git credentials, and each secret is exposed only to the single step that needs it:
   #   AOC_SESSION       -> `fetch` only (talks to adventofcode.com, runs no generated code)
-  #   ANTHROPIC_API_KEY -> `generate` steps only (talks to the API, runs no generated code)
+  #   CLAUDE_CODE_OAUTH_TOKEN -> `generate` steps only (talks to the API, runs no generated code)
   #   `bench` steps run the generated code and see neither secret.
   # ------------------------------------------------------------------------------------------
   solve:
@@ -84,6 +84,8 @@ jobs:
         with: { otp-version: "27", elixir-version: "1.18" }
       - name: Install remaining toolchains
         run: bash scripts/install-toolchains.sh
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
       - name: Toolchain report
         run: python3 -m harness doctor
 
@@ -100,11 +102,11 @@ jobs:
           [ "$FORCE" = "true" ] && args+=(--force)
           python3 -m harness fetch "${args[@]}"
 
-      # ---- 2. generate (ANTHROPIC_API_KEY only)
+      # ---- 2. generate (CLAUDE_CODE_OAUTH_TOKEN only)
       - name: Generate solutions
         if: steps.fetch.outputs.count != '0'
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           AOC_MODEL: ${{ vars.AOC_MODEL }}
         run: |
           args=()
@@ -124,7 +126,7 @@ jobs:
       - name: Repair round 1
         if: steps.fetch.outputs.count != '0'
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           AOC_MODEL: ${{ vars.AOC_MODEL }}
         run: |
           args=(--repair)
@@ -139,7 +141,7 @@ jobs:
       - name: Repair round 2
         if: steps.fetch.outputs.count != '0'
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           AOC_MODEL: ${{ vars.AOC_MODEL }}
         run: |
           args=(--repair)

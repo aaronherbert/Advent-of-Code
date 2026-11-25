@@ -1,5 +1,7 @@
 """`generate`: ask Claude for a solution in every language, and repair broken ones.
 
+Backends: `claude-code` (default; headless Claude Code CLI on your subscription) or `api` (Anthropic API key).
+
 Only the puzzle text (and, when repairing, compiler/runtime error output) is sent to the
 API. The personal puzzle input is never sent, and repair prompts never reveal the expected
 answer, only that the program's answer was judged wrong.
@@ -10,6 +12,8 @@ import json
 import os
 import random
 import re
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -38,6 +42,57 @@ Reply with the full source file in ONE fenced code block and nothing else."""
 # ------------------------------------------------------------------ API
 
 def call_claude(messages: list[dict], cfg: dict) -> str:
+    """Send the conversation to Claude using the configured backend."""
+    backend = cfg.get("backend", "claude-code")
+    if backend == "claude-code":
+        return call_claude_code(messages, cfg)
+    if backend == "api":
+        return call_anthropic_api(messages, cfg)
+    raise SystemExit(f"unknown backend {backend!r} (use 'claude-code' or 'api')")
+
+
+def render_transcript(messages: list[dict]) -> str:
+    """Flatten a short conversation into one prompt for `claude -p`."""
+    if len(messages) == 1:
+        return messages[0]["content"]
+    labels = {"user": "USER", "assistant": "YOUR PREVIOUS REPLY"}
+    return "\n\n".join(f"[{labels[m['role']]}]\n{m['content']}" for m in messages) + \
+        "\n\n[USER]\nReply to the last USER message only."
+
+
+def call_claude_code(messages: list[dict], cfg: dict) -> str:
+    """Use the Claude Code CLI in headless mode, authenticated by CLAUDE_CODE_OAUTH_TOKEN
+    (from `claude setup-token`), so usage counts against a Claude subscription, not API billing."""
+    cmd = ["claude", "-p", "--model", cfg["model"], "--system-prompt", SYSTEM, "--tools", "",
+           "--max-turns", "1", "--no-session-persistence", "--output-format", "text"]
+    prompt = render_transcript(messages)
+    delay = 30.0
+    last = ""
+    for attempt in range(1, 5):
+        # Run in an empty directory so no repo files, CLAUDE.md or settings are picked up.
+        with tempfile.TemporaryDirectory(prefix="aoc-claude-") as cwd:
+            try:
+                proc = subprocess.run(cmd, input=prompt, text=True, capture_output=True,
+                                      cwd=cwd, timeout=900, env=os.environ.copy())
+            except FileNotFoundError:
+                raise SystemExit("the `claude` CLI is not installed (npm install -g @anthropic-ai/claude-code)") from None
+            except subprocess.TimeoutExpired:
+                last = "claude -p timed out"
+                proc = None
+        if proc is not None:
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout
+            last = c.tail((proc.stderr or proc.stdout or f"exit {proc.returncode}"), 400)
+            if re.search(r"(?i)(invalid|expired).*(token|credential)|not logged in|authentication", last):
+                raise RuntimeError(f"Claude Code authentication failed; regenerate CLAUDE_CODE_OAUTH_TOKEN: {last}")
+        if attempt < 4:
+            c.log(f"claude -p failed ({last[:120]!r}); retrying in {delay:.0f}s (attempt {attempt})")
+            time.sleep(delay + random.uniform(0, 5))
+            delay *= 2
+    raise RuntimeError(f"claude -p failed: {last}")
+
+
+def call_anthropic_api(messages: list[dict], cfg: dict) -> str:
     key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not key:
         raise SystemExit("ANTHROPIC_API_KEY is not set")

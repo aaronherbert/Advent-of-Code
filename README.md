@@ -7,7 +7,7 @@ GitHub Pages.
 Each day, a GitHub Action:
 
 1. **fetches** the puzzle text and your personal input (private, never committed),
-2. asks **Claude** to write a solution in every language,
+2. asks **Claude** (through Claude Code, on your subscription) to write a solution in every language,
 3. **builds and times** all of them on the same input (median of several runs, peak memory, build time),
 4. gives Claude two chances to **repair** anything that fails to build, crashes, times out or disagrees,
 5. commits the code and results to `2026/dayNN/` and **publishes the site**.
@@ -22,11 +22,13 @@ answers, timings and code. This repo never submits answers for you.
 3. **Settings → Secrets and variables → Actions → Secrets:**
    - `AOC_SESSION`: the `session` cookie from adventofcode.com (browser dev tools → Application → Cookies).
      It expires after about a month, so refresh it if the fetch step starts failing.
-   - `ANTHROPIC_API_KEY`: an API key used to write the solutions.
+   - `CLAUDE_CODE_OAUTH_TOKEN`: lets the workflow use your Claude subscription. On a computer with Claude Code
+     installed, run `claude setup-token`, sign in, and copy the token it prints (it lasts about a year).
+     Do not also add `ANTHROPIC_API_KEY`: an API key would switch billing to the API.
 4. **Same page → Variables:**
    - `AOC_CONTACT` (recommended): your email or GitHub handle. It goes into the User-Agent so Advent of Code
      can reach you, as their automation guidelines request.
-   - `AOC_MODEL` (optional): overrides `model` in `config/settings.json`.
+   - `AOC_MODEL` (optional): overrides `model` in `config/settings.json`. Aliases such as `sonnet` work.
 5. **Actions → Advent of Code → Run workflow** to try it. Before December 1 there is nothing to fetch, so
    test with `year` set to a past year (for example `2025`) and `days` set to `1`.
 
@@ -78,9 +80,9 @@ Requires Python 3.10+ and whichever language toolchains you want to test.
 
 ```sh
 python3 -m harness doctor                       # which toolchains are installed
-export AOC_SESSION=...  ANTHROPIC_API_KEY=...
+export AOC_SESSION=...   # and be logged in to Claude Code (`claude`), or set CLAUDE_CODE_OAUTH_TOKEN
 python3 -m harness fetch --year 2026            # writes the plan, stores puzzle + input in .work/ (git-ignored)
-python3 -m harness generate                     # Claude writes solutions for the planned days
+python3 -m harness generate                     # Claude Code (`claude -p`) writes solutions for the planned days
 python3 -m harness bench                        # build + time everything
 python3 -m harness generate --repair && python3 -m harness bench --only-changed
 python3 -m harness report --year 2026           # leaderboard in the terminal
@@ -88,7 +90,7 @@ python3 -m harness site --out dist              # then: python3 -m http.server -
 python3 -m unittest discover -s tests           # offline harness tests
 ```
 
-Useful flags: `--days 3` or `--days 1-5`, `--langs python,rust`, `--force`. `AOC_LANGS=python,go` limits every
+Useful flags: `--days 3` or `--days 1-5`, `--langs python,rust`, `--force`. To use an API key instead of a subscription, set `"backend": "api"` in `config/settings.json` (or `AOC_BACKEND=api`) and provide `ANTHROPIC_API_KEY`. `AOC_LANGS=python,go` limits every
 command to those languages. To work offline, put `puzzle.md` and `input.txt` in `.work/2026/dayNN/` by hand.
 
 ## Customising
@@ -105,7 +107,7 @@ command to those languages. To work offline, put `puzzle.md` and `input.txt` in 
 Generated code is untrusted, so the pipeline separates what can run it from what holds credentials:
 
 - The `solve` job has read-only repo access and no persisted git token. `AOC_SESSION` is visible only to the
-  `fetch` step and `ANTHROPIC_API_KEY` only to the `generate` steps. Neither of those steps runs generated code.
+  `fetch` step and `CLAUDE_CODE_OAUTH_TOKEN` only to the `generate` steps. Neither of those steps runs generated code.
   The `bench` steps run the generated programs with no secrets in their environment, and the harness strips
   anything that looks like a credential from the child environment as a second layer.
 - Only source files, `meta.json` and `results.json` cross to the `publish` job, which has write access and runs
@@ -113,12 +115,16 @@ Generated code is untrusted, so the pipeline separates what can run it from what
 - Generated programs are still LLM-written code running on a throwaway GitHub-hosted VM with network access.
   Fork pull requests never get your secrets.
 - Repair prompts tell the model that an answer was judged wrong but never what the right answer is, so it cannot
-  hard-code it. Puzzle input is never sent to the API.
+  hard-code it. Puzzle input is never sent to Claude.
 
 ## Cost and limits
 
-- Expect roughly 50 to 100 API calls per puzzle day: about 25 for part 1, 25 again once part 2 appears, plus
-  repairs. Costs depend on the model you set; watch your usage in the Anthropic console after the first days.
+- Expect roughly 50 to 100 Claude requests per puzzle day: about 25 for part 1, 25 again once part 2 appears,
+  plus repairs. These count against your subscription's usage limits. If you hit them, the run logs the
+  failures and the next run retries; lower `generate_concurrency`, pick a lighter `model`, or disable some
+  languages in `config/languages.json`.
+- The OAuth token expires after about a year and does not refresh. If generation starts failing with an
+  authentication error, run `claude setup-token` again and update the secret.
 - A full day is 25 languages × (build + 6 runs) on a 2-core runner, usually well under an hour. The job times
   out at 4 hours.
 - Haskell, Scala, Kotlin, Swift, Zig and Dart have the most toolchain moving parts. Check the "Toolchain report"

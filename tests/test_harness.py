@@ -177,6 +177,41 @@ class FetchTests(unittest.TestCase):
         self.assertNotIn("1\n2\n3", (TMP / "2026" / "day01" / "meta.json").read_text())
 
 
+class ClaudeCodeBackend(unittest.TestCase):
+    """The headless CLI backend, exercised with a fake `claude` executable."""
+
+    def test_cli_call(self):
+        bindir = Path(tempfile.mkdtemp(prefix="fakeclaude-"))
+        log = bindir / "args.txt"
+        exe = bindir / "claude"
+        exe.write_text("#!/bin/bash\n"
+                       f"printf '%s\\n' \"$@\" > '{log}'\n"
+                       f"cat > '{log}.stdin'\n"
+                       "printf '```python\\nprint(1)\\n```\\n'\n")
+        exe.chmod(0o755)
+        msgs = [{"role": "user", "content": "FIRST"}, {"role": "assistant", "content": "CODE"},
+                {"role": "user", "content": "FIX IT"}]
+        with mock.patch.dict(os.environ, {"PATH": f"{bindir}:{os.environ['PATH']}"}):
+            out = generate.call_claude(msgs, {**c.settings(), "backend": "claude-code"})
+        self.assertIn("print(1)", out)
+        args = log.read_text().split("\n")
+        for flag in ("-p", "--tools", "--system-prompt", "--no-session-persistence", "--model"):
+            self.assertIn(flag, args)
+        sent = Path(str(log) + ".stdin").read_text()
+        self.assertIn("FIRST", sent)
+        self.assertIn("FIX IT", sent)
+        self.assertIn("YOUR PREVIOUS REPLY", sent)
+        shutil.rmtree(bindir, ignore_errors=True)
+
+    def test_unknown_backend(self):
+        with self.assertRaises(SystemExit):
+            generate.call_claude([{"role": "user", "content": "x"}], {"backend": "nope"})
+
+    def test_token_is_scrubbed_from_child_env(self):
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_OAUTH_TOKEN": "sk-ant-oat01-x"}):
+            self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", c.scrubbed_env())
+
+
 class GenerateRepairFlow(unittest.TestCase):
     """generate -> bench -> repair -> bench with the Claude call mocked out."""
 
